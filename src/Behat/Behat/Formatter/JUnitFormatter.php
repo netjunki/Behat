@@ -253,18 +253,29 @@ class JUnitFormatter extends ConsoleFormatter
      */
     protected function printTestSuiteFooter(FeatureNode $feature, $time)
     {
-        $suiteStats = sprintf('classname="behat.features" errors="0" failures="%d" skipped="%d" name="%s" file="%s" tests="%d" assertions="%d" time="%F"',
-            $this->exceptionsCount,
-            $this->pendingCount,
-            htmlspecialchars($feature->getTitle()),
-            htmlspecialchars($feature->getFile()),
+	// following is a hack to get junit validation working -- mitch lee
+	if ($feature->getTitle() == "") {
+	    $name = "behat";
+	} else {
+	    $name = $feature->getFile();
+	}
+
+	//echo $name;
+	
+        $suiteStats = sprintf('errors="0" failures="%d" name="%s" tests="%d" time="%F" timestamp="%s" hostname="%s"',
+            $this->exceptionsCount,	    
+	    htmlspecialchars($name),
             $this->scenariosCount,
-            $this->stepsCount,
-            $time
+            $time,
+	    date('Y-m-d\TH:i:s'),
+	    gethostname()
         );
 
         $this->writeln("<testsuite $suiteStats>");
-        $this->writeln(implode("\n", $this->testcases));
+	$this->writeln("<properties>  </properties>");
+        $this->writeln(implode("\n", $this->testcases));	
+#	$this->writeln("<system-out>  </system-out>");
+#	$this->writeln("<system-err>  </system-err>");
         $this->writeln('</testsuite>');
     }
 
@@ -277,22 +288,22 @@ class JUnitFormatter extends ConsoleFormatter
      */
     protected function printTestCase(ScenarioNode $scenario, $time, EventInterface $event)
     {
-        $className = $scenario->getFeature()->getTitle();
+        //hack by ml
+        $className = $scenario->getFeature()->getFile();
         $name = $scenario->getTitle();
         $name .= $event instanceof OutlineExampleEvent
             ? ', Ex #' . ($event->getIteration() + 1)
             : '';
-        $caseStats = sprintf('classname="%s" name="%s" time="%F" assertions="%d"',
+        $caseStats = sprintf('classname="%s" name="%s" time="%F"',
             htmlspecialchars($className),
             htmlspecialchars($name),
-            $time,
-            $this->scenarioStepsCount
+            $time
         );
 
         $xml  = "    <testcase $caseStats>\n";
 
         foreach ($this->exceptions as $exception) {
-            $error = $this->exceptionToString($exception);
+            $error = $scenario->getFile().':'.$scenario->getLine();
             $elemType = $this->getElementType($event->getResult());
             $elemAttributes = '';
             if ($elemType !== 'skipped') {
